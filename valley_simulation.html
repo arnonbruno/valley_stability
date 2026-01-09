@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valley of Stability - Interactive Nuclear Physics Simulation</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;600;700&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        #container { position: relative; width: 100%; height: 100%; }
+        #canvas-container { width: 100%; height: 100%; }
+        
+        #header {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            padding: 16px 24px;
+            background: linear-gradient(180deg, rgba(245,245,245,0.98) 0%, rgba(245,245,245,0) 100%);
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #title-block h1 { font-size: 1.5rem; font-weight: 700; color: #2c3e50; }
+        #title-block p { font-size: 0.85rem; color: #7f8c8d; margin-top: 4px; }
+        
+        #stats-panel {
+            position: absolute;
+            top: 80px; right: 24px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 20px;
+            min-width: 280px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            z-index: 100;
+        }
+        
+        #stats-panel h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #7f8c8d;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #stats-panel h3::before {
+            content: '';
+            width: 8px; height: 8px;
+            background: #27ae60;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label { font-size: 0.85rem; color: #7f8c8d; }
+        .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; font-weight: 600; color: #2c3e50; }
+        .stat-value.highlight { color: #e67e22; }
+        .stat-value.decay { color: #9b59b6; }
+        .stat-value.time { color: #3498db; }
+        .stat-value.stable { color: #27ae60; }
+        .stat-value.decay-mode { font-size: 1.1rem; }
+        .stat-value.decay-mode.beta-minus { color: #e74c3c; }
+        .stat-value.decay-mode.beta-plus { color: #3498db; }
+        .stat-value.decay-mode.alpha { color: #f39c12; }
+        .stat-value.decay-mode.ec { color: #9b59b6; }
+        
+        #tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(44, 62, 80, 0.95);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.9rem;
+            color: white;
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        
+        #tooltip.visible { opacity: 1; }
+        #tooltip .isotope-name { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+        #tooltip .isotope-name sup { font-size: 0.65em; vertical-align: super; }
+        #tooltip .isotope-details { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 0.8rem; color: #bdc3c7; }
+        #tooltip .isotope-details span { font-family: 'JetBrains Mono', monospace; color: #ecf0f1; }
+        #tooltip .half-life { margin-top: 8px; padding-top: 8px; border-top: 1px solid #555; font-size: 0.85rem; }
+        #tooltip .half-life span { color: #f39c12; font-weight: 600; }
+        
+        #legend {
+            position: absolute;
+            bottom: 24px; left: 24px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            z-index: 100;
+        }
+        
+        #legend h4 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: #7f8c8d; margin-bottom: 12px; }
+        .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: #555; margin-bottom: 6px; }
+        .legend-color { width: 20px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.1); }
+        
+        #instructions {
+            position: absolute;
+            bottom: 24px; right: 24px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            z-index: 100;
+            font-size: 0.8rem;
+            color: #7f8c8d;
+        }
+        
+        #instructions h4 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: #7f8c8d; margin-bottom: 10px; }
+        #instructions p { margin-bottom: 5px; }
+        #instructions kbd { background: #ecf0f1; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #2c3e50; }
+        
+        #loading {
+            position: absolute;
+            inset: 0;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+        
+        #loading.hidden { opacity: 0; pointer-events: none; }
+        .loader { width: 50px; height: 50px; border: 3px solid #ddd; border-top-color: #3498db; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loading p { margin-top: 20px; color: #7f8c8d; }
+        #loading-status { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #3498db; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="canvas-container"></div>
+        
+        <div id="loading">
+            <div class="loader"></div>
+            <p>Loading Nuclear Data</p>
+            <div id="loading-status">Initializing...</div>
+        </div>
+        
+        <div id="header">
+            <div id="title-block">
+                <h1>The Valley of Stability</h1>
+                <p>A Kinetic Model for Nuclear Decay Education • AME2020 Experimental Data</p>
+            </div>
+        </div>
+        
+        <div id="stats-panel">
+            <h3>Decay Simulation</h3>
+            <div class="stat-row"><span class="stat-label">Start Isotope</span><span class="stat-value" id="start-isotope">—</span></div>
+            <div class="stat-row"><span class="stat-label">Current Isotope</span><span class="stat-value highlight" id="current-isotope">—</span></div>
+            <div class="stat-row"><span class="stat-label">Last Decay</span><span class="stat-value decay-mode" id="decay-mode">—</span></div>
+            <div class="stat-row"><span class="stat-label">Total Decay Time</span><span class="stat-value decay" id="decay-time">—</span></div>
+            <div class="stat-row"><span class="stat-label">Decays Counted</span><span class="stat-value" id="decay-count">0</span></div>
+            <div class="stat-row"><span class="stat-label">Status</span><span class="stat-value" id="status">Click to drop</span></div>
+        </div>
+        
+        <div id="tooltip"><div class="isotope-name"><sup>56</sup>Fe</div><div class="isotope-details"></div></div>
+        
+        <div id="legend">
+            <h4>Surface Colors</h4>
+            <div class="legend-item"><div class="legend-color" style="background: #E8F6F3;"></div>Valley Floor: Stable</div>
+            <div class="legend-item"><div class="legend-color" style="background: #5DADE2;"></div>Slope: Long t½</div>
+            <div class="legend-item"><div class="legend-color" style="background: #F4D03F;"></div>Steep: Short t½</div>
+            <div class="legend-item"><div class="legend-color" style="background: #E74C3C;"></div>Peaks: Unstable</div>
+            <h4 style="margin-top: 12px;">Decay Trail</h4>
+            <div class="legend-item"><div class="legend-color" style="background: #e74c3c;"></div>β⁻: n→p</div>
+            <div class="legend-item"><div class="legend-color" style="background: #3498db;"></div>β⁺: p→n</div>
+            <div class="legend-item"><div class="legend-color" style="background: #9b59b6;"></div>EC: e⁻ capture</div>
+            <div class="legend-item"><div class="legend-color" style="background: #f39c12;"></div>α: He-4</div>
+            <div class="legend-item"><div class="legend-color" style="background: #ff5722;"></div>ββ: double-β</div>
+            <div class="legend-item"><div class="legend-color" style="background: #27ae60;"></div>Start/End</div>
+        </div>
+        
+        <div id="instructions">
+            <h4>Controls</h4>
+            <p><kbd>Click</kbd> on isotope to start decay</p>
+            <p><kbd>Drag</kbd> to rotate view</p>
+            <p><kbd>Scroll</kbd> to zoom</p>
+            <p><kbd>R</kbd> to reset camera</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // ============================================================
+        // ELEMENT DATA
+        // ============================================================
+        const ELEMENTS = {1:'H',2:'He',3:'Li',4:'Be',5:'B',6:'C',7:'N',8:'O',9:'F',10:'Ne',11:'Na',12:'Mg',13:'Al',14:'Si',15:'P',16:'S',17:'Cl',18:'Ar',19:'K',20:'Ca',21:'Sc',22:'Ti',23:'V',24:'Cr',25:'Mn',26:'Fe',27:'Co',28:'Ni',29:'Cu',30:'Zn',31:'Ga',32:'Ge',33:'As',34:'Se',35:'Br',36:'Kr',37:'Rb',38:'Sr',39:'Y',40:'Zr',41:'Nb',42:'Mo',43:'Tc',44:'Ru',45:'Rh',46:'Pd',47:'Ag',48:'Cd',49:'In',50:'Sn',51:'Sb',52:'Te',53:'I',54:'Xe',55:'Cs',56:'Ba',57:'La',58:'Ce',59:'Pr',60:'Nd',61:'Pm',62:'Sm',63:'Eu',64:'Gd',65:'Tb',66:'Dy',67:'Ho',68:'Er',69:'Tm',70:'Yb',71:'Lu',72:'Hf',73:'Ta',74:'W',75:'Re',76:'Os',77:'Ir',78:'Pt',79:'Au',80:'Hg',81:'Tl',82:'Pb',83:'Bi',84:'Po',85:'At',86:'Rn',87:'Fr',88:'Ra',89:'Ac',90:'Th',91:'Pa',92:'U',93:'Np',94:'Pu',95:'Am',96:'Cm',97:'Bk',98:'Cf',99:'Es',100:'Fm',101:'Md',102:'No',103:'Lr',104:'Rf',105:'Db',106:'Sg',107:'Bh',108:'Hs',109:'Mt',110:'Ds'};
+
+        // ============================================================
+        // HALF-LIFE DATA (seconds) - Key isotopes
+        // Stable = Infinity, data from NUBASE2020
+        // ============================================================
+        const HALF_LIVES = {
+            // Stable isotopes (represented as very large number)
+            '1_0': Infinity, '2_2': Infinity, '6_6': Infinity, '7_7': Infinity, '8_8': Infinity,
+            '26_30': Infinity, '26_28': Infinity, // Fe-56, Fe-54
+            '28_30': Infinity, '28_32': Infinity, // Ni-58, Ni-60
+            '82_126': Infinity, '82_124': Infinity, // Pb-208, Pb-206
+            
+            // Some notable radioactive isotopes (half-life in seconds)
+            '6_8': 5730 * 365.25 * 24 * 3600, // C-14: 5730 years
+            '19_21': 1.248e9 * 365.25 * 24 * 3600, // K-40: 1.248 billion years
+            '27_33': 5.2714 * 365.25 * 24 * 3600, // Co-60: 5.27 years
+            '38_52': 28.8 * 365.25 * 24 * 3600, // Sr-90: 28.8 years
+            '53_78': 8.02 * 24 * 3600, // I-131: 8 days
+            '55_82': 30.08 * 365.25 * 24 * 3600, // Cs-137: 30 years
+            '86_136': 3.82 * 24 * 3600, // Rn-222: 3.82 days
+            '88_138': 1600 * 365.25 * 24 * 3600, // Ra-226: 1600 years
+            '90_142': 1.405e10 * 365.25 * 24 * 3600, // Th-232: 14 billion years
+            '92_143': 7.04e8 * 365.25 * 24 * 3600, // U-235: 704 million years
+            '92_146': 4.468e9 * 365.25 * 24 * 3600, // U-238: 4.5 billion years
+            '94_145': 2.411e4 * 365.25 * 24 * 3600, // Pu-239: 24,110 years
+        };
+
+        // Estimate half-life based on distance from stability
+        function estimateHalfLife(n, z) {
+            const key = `${z}_${n}`;
+            if (HALF_LIVES[key] !== undefined) return HALF_LIVES[key];
+            
+            // Estimate based on distance from beta-stability line
+            const a = n + z;
+            const z_stable = a / (2 + 0.015 * Math.pow(a, 2/3));
+            const distance = Math.abs(z - z_stable);
+            
+            // Magic numbers (shell closures) - more stable
+            const magicN = [2, 8, 20, 28, 50, 82, 126];
+            const magicZ = [2, 8, 20, 28, 50, 82];
+            const isDoublyMagic = magicN.includes(n) && magicZ.includes(z);
+            const isMagic = magicN.includes(n) || magicZ.includes(z);
+            
+            if (distance < 0.5) {
+                // Very close to stability - likely stable or very long-lived
+                if (isDoublyMagic) return Infinity;
+                if (isMagic) return 1e15; // billions of years
+                return 1e12; // millions of years
+            } else if (distance < 2) {
+                // Moderately unstable
+                const base = isMagic ? 1e8 : 1e6; // years to thousands of years
+                return base * Math.exp(-distance);
+            } else if (distance < 5) {
+                // Quite unstable - days to years
+                return 86400 * Math.pow(10, 3 - distance);
+            } else if (distance < 10) {
+                // Very unstable - seconds to hours
+                return Math.pow(10, 5 - distance);
+            } else {
+                // Extremely unstable - microseconds to milliseconds
+                return Math.pow(10, -3 - (distance - 10) * 0.5);
+            }
+        }
+
+        function formatHalfLife(seconds) {
+            if (!isFinite(seconds) || seconds > 1e18) return "Stable";
+            if (seconds < 1e-9) return (seconds * 1e12).toFixed(1) + " ps";
+            if (seconds < 1e-6) return (seconds * 1e9).toFixed(1) + " ns";
+            if (seconds < 1e-3) return (seconds * 1e6).toFixed(1) + " μs";
+            if (seconds < 1) return (seconds * 1e3).toFixed(1) + " ms";
+            if (seconds < 60) return seconds.toFixed(2) + " s";
+            if (seconds < 3600) return (seconds / 60).toFixed(1) + " min";
+            if (seconds < 86400) return (seconds / 3600).toFixed(1) + " hr";
+            if (seconds < 365.25 * 86400) return (seconds / 86400).toFixed(1) + " days";
+            if (seconds < 1e6 * 365.25 * 86400) return (seconds / (365.25 * 86400)).toFixed(1) + " yr";
+            if (seconds < 1e9 * 365.25 * 86400) return (seconds / (1e6 * 365.25 * 86400)).toFixed(2) + " Myr";
+            return (seconds / (1e9 * 365.25 * 86400)).toFixed(2) + " Gyr";
+        }
+
+        // ============================================================
+        // GLOBALS
+        // ============================================================
+        let scene, camera, renderer, controls;
+        let terrainMesh, terrainData;
+        let marble, marbleTrail = [];
+        
+        let marbleState = {
+            active: false, n: 0, z: 0, vn: 0, vz: 0,
+            startTime: 0, startIsotope: null,
+            totalDecayTime: 0, decayCount: 0,
+            settled: false, settleCount: 0
+        };
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function updateLoadingStatus(text) { document.getElementById('loading-status').textContent = text; }
+
+        // ============================================================
+        // LOAD PRE-GENERATED DATA FROM PYTHON
+        // ============================================================
+        async function loadTerrainData() {
+            updateLoadingStatus('Loading AME2020 terrain data...');
+            
+            try {
+                const response = await fetch('valley_data.json');
+                terrainData = await response.json();
+                console.log('Loaded terrain data:', terrainData.grid_width, 'x', terrainData.grid_depth);
+                return true;
+            } catch (e) {
+                console.error('Failed to load terrain data:', e);
+                updateLoadingStatus('Error loading data. Run data_gen.py first.');
+                return false;
+            }
+        }
+
+        function getGridHeight(n, z) {
+            if (!terrainData) return -1;
+            
+            const { grid_width, grid_depth, min_n, max_n, min_z, max_z, heights } = terrainData;
+            
+            // Map N/Z to grid indices
+            const i = ((n - min_n) / (max_n - min_n)) * (grid_width - 1);
+            const j = ((z - min_z) / (max_z - min_z)) * (grid_depth - 1);
+            
+            if (i < 0 || i >= grid_width - 1 || j < 0 || j >= grid_depth - 1) return -1;
+            
+            // Bilinear interpolation
+            const i0 = Math.floor(i), i1 = i0 + 1;
+            const j0 = Math.floor(j), j1 = j0 + 1;
+            const ti = i - i0, tj = j - j0;
+            
+            // Heights array is row-major: heights[j * grid_width + i]
+            const h00 = heights[j0 * grid_width + i0];
+            const h10 = heights[j0 * grid_width + i1];
+            const h01 = heights[j1 * grid_width + i0];
+            const h11 = heights[j1 * grid_width + i1];
+            
+            return (h00 * (1-ti) + h10 * ti) * (1-tj) + (h01 * (1-ti) + h11 * ti) * tj;
+        }
+
+        // ============================================================
+        // THREE.JS SCENE
+        // ============================================================
+        function initScene() {
+            updateLoadingStatus('Initializing 3D scene...');
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf8f8f8);
+            
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(180, 100, 160);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+            
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(80, 15, 55);
+            controls.minDistance = 50;
+            controls.maxDistance = 400;
+            
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const light1 = new THREE.DirectionalLight(0xffffff, 0.5);
+            light1.position.set(100, 150, 100);
+            scene.add(light1);
+            const light2 = new THREE.DirectionalLight(0xffffff, 0.3);
+            light2.position.set(-50, 100, -50);
+            scene.add(light2);
+            
+            const grid = new THREE.GridHelper(250, 25, 0xcccccc, 0xe5e5e5);
+            grid.position.y = -1;
+            scene.add(grid);
+            
+            addLabels();
+        }
+        
+        function addLabels() {
+            const make = (text, pos) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 512; canvas.height = 128;
+                ctx.fillStyle = '#666';
+                ctx.font = 'bold 42px Space Grotesk, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(text, 256, 80);
+                const tex = new THREE.CanvasTexture(canvas);
+                const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+                const sprite = new THREE.Sprite(mat);
+                sprite.position.set(pos.x, pos.y, pos.z);
+                sprite.scale.set(50, 12.5, 1);
+                scene.add(sprite);
+            };
+            make('Neutrons (N) →', { x: 80, y: -8, z: -12 });
+            make('Protons (Z) →', { x: -12, y: -8, z: 55 });
+        }
+
+        // ============================================================
+        // TERRAIN MESH FROM PRE-GENERATED DATA
+        // ============================================================
+        function createTerrain() {
+            updateLoadingStatus('Building terrain mesh...');
+            
+            const { grid_width, grid_depth, min_n, max_n, min_z, max_z, heights, max_height_mm } = terrainData;
+            
+            const vertices = [];
+            const colors = [];
+            const indices = [];
+            const vertexMap = new Map();
+            
+            function addVertex(i, j) {
+                const key = `${i}_${j}`;
+                if (vertexMap.has(key)) return vertexMap.get(key);
+                
+                const n = min_n + (i / (grid_width - 1)) * (max_n - min_n);
+                const z = min_z + (j / (grid_depth - 1)) * (max_z - min_z);
+                const h = heights[j * grid_width + i];
+                
+                const idx = vertices.length / 3;
+                vertices.push(n, h, z);
+                
+                // Color based on normalized height
+                const t = h / max_height_mm;
+                const c = getColor(t);
+                colors.push(c.r, c.g, c.b);
+                
+                vertexMap.set(key, idx);
+                return idx;
+            }
+            
+            // Create all triangles
+            for (let i = 0; i < grid_width - 1; i++) {
+                for (let j = 0; j < grid_depth - 1; j++) {
+                    const v00 = addVertex(i, j);
+                    const v10 = addVertex(i+1, j);
+                    const v01 = addVertex(i, j+1);
+                    const v11 = addVertex(i+1, j+1);
+                    
+                    indices.push(v00, v10, v11);
+                    indices.push(v00, v11, v01);
+                }
+            }
+            
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geometry.setIndex(indices);
+            geometry.computeVertexNormals();
+            
+            const material = new THREE.MeshStandardMaterial({
+                vertexColors: true,
+                roughness: 0.6,
+                metalness: 0.05,
+                side: THREE.DoubleSide
+            });
+            
+            terrainMesh = new THREE.Mesh(geometry, material);
+            scene.add(terrainMesh);
+            
+            console.log(`Terrain: ${vertices.length/3} vertices, ${indices.length/3} triangles`);
+        }
+        
+        function getColor(t) {
+            // Exact matplotlib colormap: E8F6F3 → 5DADE2 → F4D03F → E74C3C
+            const cols = [[0.91,0.96,0.95],[0.36,0.68,0.89],[0.96,0.82,0.25],[0.91,0.30,0.24]];
+            const stops = [0, 0.08, 0.25, 0.55];
+            t = Math.max(0, Math.min(1, t));
+            let i = 0;
+            for (; i < stops.length - 1; i++) if (t < stops[i+1]) break;
+            i = Math.min(i, cols.length - 2);
+            const lt = Math.max(0, Math.min(1, (t - stops[i]) / (stops[i+1] - stops[i])));
+            return { 
+                r: cols[i][0] + (cols[i+1][0] - cols[i][0]) * lt, 
+                g: cols[i][1] + (cols[i+1][1] - cols[i][1]) * lt, 
+                b: cols[i][2] + (cols[i+1][2] - cols[i][2]) * lt 
+            };
+        }
+
+        // ============================================================
+        // NEUTRON BALL - Physics-accurate decay simulation
+        // ============================================================
+        function createMarble() {
+            // Smaller neutron ball (0.8 radius instead of 2)
+            const geo = new THREE.SphereGeometry(0.8, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: 0x3498db,  // Blue for neutron
+                roughness: 0.2, 
+                metalness: 0.6,
+                emissive: 0x1a5276,
+                emissiveIntensity: 0.3
+            });
+            marble = new THREE.Mesh(geo, mat);
+            marble.visible = false;
+            scene.add(marble);
+            
+            // Add glow effect
+            const glowGeo = new THREE.SphereGeometry(1.2, 16, 16);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: 0x5dade2,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glow = new THREE.Mesh(glowGeo, glowMat);
+            marble.add(glow);
+        }
+        
+        // Calculate the stable Z for a given mass number A (beta-stability line)
+        function getStableZ(a) {
+            // Semi-Empirical Mass Formula: Z_stable ≈ A / (2 + 0.015 * A^(2/3))
+            return a / (2 + 0.015 * Math.pow(a, 2/3));
+        }
+        
+        // Determine decay mode based on NUCLEAR PHYSICS principles
+        // KEY RULE: Decay ONLY happens if it's ENERGETICALLY FAVORABLE (downhill in terrain)
+        // This correctly handles cases like Mo-100 which is stable against β⁻ to Tc-100
+        function getDecayMode(n, z) {
+            const currentHeight = getGridHeight(n, z);
+            if (currentHeight < 2.5) return 'stable';  // Outside valid data
+            
+            const a = n + z;
+            if (a < 3) return 'stable';  // Very light nuclei
+            
+            // Calculate deviation from beta-stability line (for determining decay DIRECTION)
+            const z_stable = getStableZ(a);
+            const deviation = z - z_stable;  // Positive = proton-rich, Negative = neutron-rich
+            
+            // Energy threshold - decay only if product is significantly lower in energy
+            const energyThreshold = 0.2;
+            
+            // Collect ALL energetically favorable decay candidates
+            const candidates = [];
+            
+            // === ALPHA DECAY (Z > 82, heavy nuclei) ===
+            if (z > 82 && a > 180) {
+                const alphaHeight = getGridHeight(n - 2, z - 2);
+                if (alphaHeight >= 2.5 && alphaHeight < currentHeight - energyThreshold) {
+                    candidates.push({ mode: 'alpha', height: alphaHeight, priority: 1 });
+                }
+            }
+            
+            // === β⁺ / EC DECAY (proton → neutron, Z decreases) ===
+            // Only consider if proton-rich OR if energetically favorable
+            if (z >= 2) {
+                const ecHeight = getGridHeight(n + 1, z - 1);
+                // CRITICAL: Only allow if decay product is LOWER energy (downhill)
+                if (ecHeight >= 2.5 && ecHeight < currentHeight - energyThreshold) {
+                    const mode = (a > 40) ? 'ec' : 'beta+';
+                    // Higher priority if we're proton-rich
+                    const priority = deviation > 0.5 ? 2 : 4;
+                    candidates.push({ mode, height: ecHeight, priority });
+                }
+            }
+            
+            // === β⁻ DECAY (neutron → proton, Z increases) ===
+            // Only consider if neutron-rich OR if energetically favorable
+            if (n >= 1 && z < 118) {
+                const betaHeight = getGridHeight(n - 1, z + 1);
+                // CRITICAL: Only allow if decay product is LOWER energy (downhill)
+                if (betaHeight >= 2.5 && betaHeight < currentHeight - energyThreshold) {
+                    // Higher priority if we're neutron-rich
+                    const priority = deviation < -0.5 ? 2 : 4;
+                    candidates.push({ mode: 'beta-', height: betaHeight, priority });
+                }
+            }
+            
+            // === PROTON EMISSION (extreme proton-rich at drip line) ===
+            if (deviation > 2.0 && z >= 2) {
+                const pHeight = getGridHeight(n, z - 1);
+                if (pHeight >= 2.5 && pHeight < currentHeight - energyThreshold) {
+                    candidates.push({ mode: 'p', height: pHeight, priority: 3 });
+                }
+            }
+            
+            // === NEUTRON EMISSION (extreme neutron-rich at drip line) ===
+            if (deviation < -2.0 && n >= 1) {
+                const nHeight = getGridHeight(n - 1, z);
+                if (nHeight >= 2.5 && nHeight < currentHeight - energyThreshold) {
+                    candidates.push({ mode: 'n', height: nHeight, priority: 3 });
+                }
+            }
+            
+            // === DOUBLE-BETA DECAY (very rare, for even-even nuclei at local minima) ===
+            // This handles cases like Mo-100 → Ru-100
+            if (candidates.length === 0 && z % 2 === 0 && n % 2 === 0) {
+                // Check β⁻β⁻ (2 neutrons → 2 protons)
+                const bb_height = getGridHeight(n - 2, z + 2);
+                if (bb_height >= 2.5 && bb_height < currentHeight - energyThreshold) {
+                    candidates.push({ mode: '2beta', height: bb_height, priority: 5 });
+                }
+            }
+            
+            // If no energetically favorable decay exists → STABLE
+            if (candidates.length === 0) {
+                return 'stable';
+            }
+            
+            // Sort by priority first, then by energy (lowest first)
+            candidates.sort((a, b) => {
+                if (a.priority !== b.priority) return a.priority - b.priority;
+                return a.height - b.height;
+            });
+            
+            return candidates[0].mode;
+        }
+        
+        // Apply decay and get new isotope
+        function applyDecay(n, z, mode) {
+            const decayMap = {
+                'beta-': { dn: -1, dz: +1, label: 'β⁻' },
+                'beta+': { dn: +1, dz: -1, label: 'β⁺' },
+                'ec':    { dn: +1, dz: -1, label: 'EC' },
+                'alpha': { dn: -2, dz: -2, label: 'α' },
+                'p':     { dn: 0,  dz: -1, label: 'p' },
+                'n':     { dn: -1, dz: 0,  label: 'n' },
+                '2p':    { dn: 0,  dz: -2, label: '2p' },
+                '2n':    { dn: -2, dz: 0,  label: '2n' },
+                '2beta': { dn: -2, dz: +2, label: 'ββ' },  // Double-beta decay
+            };
+            
+            const d = decayMap[mode];
+            if (!d) return { n, z, mode: 'stable' };
+            
+            return { 
+                n: n + d.dn, 
+                z: z + d.dz, 
+                mode: d.label 
+            };
+        }
+        
+        function dropMarble(worldPos) {
+            const n = Math.round(worldPos.x);
+            const z = Math.round(worldPos.z);
+            const { min_n, max_n, min_z, max_z } = terrainData;
+            
+            // Check basic bounds
+            if (n < 0 || n > max_n || z < 1 || z > max_z) return;
+            
+            const h = getGridHeight(n, z);
+            
+            // Only allow drops on valid terrain (height > 0.5mm indicates real data)
+            if (h < 0.5) {
+                console.log(`Invalid drop at N=${n}, Z=${z}: height=${h}`);
+                return;
+            }
+            
+            // Clear previous trail
+            marbleTrail.forEach(t => scene.remove(t));
+            marbleTrail = [];
+            
+            // Initialize decay simulation
+            marbleState = {
+                active: true,
+                currentN: n,
+                currentZ: z,
+                targetN: n,
+                targetZ: z,
+                animProgress: 1,  // Start ready for next decay
+                startTime: performance.now(),
+                startIsotope: { N: n, Z: z, A: n + z },
+                totalDecayTime: 0,
+                decayCount: 0,
+                decayChain: [],  // Store the decay history
+                settled: false,
+                lastDecayMode: '',
+                waitingForDecay: true,
+                decayTimer: 0
+            };
+            
+            marble.position.set(n, h + 1, z);
+            marble.visible = true;
+            
+            // Add starting point marker
+            addTrailMarker(n, z, h, 0x27ae60);  // Green for start
+            
+            updateStats();
+        }
+        
+        function addTrailMarker(n, z, h, color) {
+            const tg = new THREE.SphereGeometry(0.4, 8, 8);
+            const tm = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.7 });
+            const trail = new THREE.Mesh(tg, tm);
+            trail.position.set(n, h + 0.5, z);
+            scene.add(trail);
+            marbleTrail.push(trail);
+        }
+        
+        function findNearest(n, z) {
+            const roundN = Math.round(n);
+            const roundZ = Math.round(z);
+            const a = roundN + roundZ;
+            const halfLife = estimateHalfLife(roundN, roundZ);
+            
+            return {
+                N: roundN,
+                Z: roundZ,
+                A: a,
+                halfLife: halfLife
+            };
+        }
+        
+        function updateMarble(dt) {
+            if (!marbleState.active || marbleState.settled) return;
+            
+            // Animate smooth movement between isotopes
+            if (marbleState.animProgress < 1) {
+                marbleState.animProgress += dt * 2;  // Speed of transition animation
+                marbleState.animProgress = Math.min(1, marbleState.animProgress);
+                
+                // Smooth interpolation
+                const t = marbleState.animProgress;
+                const easeT = t * t * (3 - 2 * t);  // Smoothstep
+                
+                const currentN = marbleState.currentN + (marbleState.targetN - marbleState.currentN) * easeT;
+                const currentZ = marbleState.currentZ + (marbleState.targetZ - marbleState.currentZ) * easeT;
+                
+                const h = getGridHeight(currentN, currentZ);
+                if (h >= 0) {
+                    marble.position.set(currentN, h + 1, currentZ);
+                }
+                
+                // Animation complete
+                if (marbleState.animProgress >= 1) {
+                    marbleState.currentN = marbleState.targetN;
+                    marbleState.currentZ = marbleState.targetZ;
+                    marbleState.waitingForDecay = true;
+                    marbleState.decayTimer = 0;
+                }
+            }
+            
+            // Process next decay step
+            if (marbleState.waitingForDecay) {
+                // Add small delay between decays for visualization (scaled to half-life)
+                const halfLife = estimateHalfLife(marbleState.currentN, marbleState.currentZ);
+                
+                // Scale delay: very short half-lives = fast animation, long = still reasonable
+                let decayDelay;
+                if (!isFinite(halfLife)) {
+                    decayDelay = Infinity;  // Stable - stop
+                } else if (halfLife < 1) {
+                    decayDelay = 0.1;  // Very fast decays
+                } else if (halfLife < 60) {
+                    decayDelay = 0.2;
+                } else if (halfLife < 3600) {
+                    decayDelay = 0.3;
+                } else {
+                    decayDelay = 0.5;  // Slow decays still animate reasonably
+                }
+                
+                marbleState.decayTimer += dt;
+                
+                if (marbleState.decayTimer >= decayDelay) {
+                    // Determine decay mode
+                    const mode = getDecayMode(marbleState.currentN, marbleState.currentZ);
+                    
+                    if (mode === 'stable') {
+                        marbleState.settled = true;
+                        // Add final marker
+                        const h = getGridHeight(marbleState.currentN, marbleState.currentZ);
+                        addTrailMarker(marbleState.currentN, marbleState.currentZ, h, 0x27ae60);
+                    } else {
+                        // Add half-life to total time
+                        if (isFinite(halfLife)) {
+                            marbleState.totalDecayTime += halfLife;
+                        }
+                        
+                        // Apply decay
+                        const result = applyDecay(marbleState.currentN, marbleState.currentZ, mode);
+                        
+                        // Store in decay chain
+                        marbleState.decayChain.push({
+                            from: { N: marbleState.currentN, Z: marbleState.currentZ },
+                            to: { N: result.n, Z: result.z },
+                            mode: result.mode,
+                            halfLife: halfLife
+                        });
+                        
+                        // Add trail marker with color based on decay type
+                        const h = getGridHeight(marbleState.currentN, marbleState.currentZ);
+                        let trailColor;
+                        switch (mode) {
+                            case 'beta-': trailColor = 0xe74c3c; break;  // Red
+                            case 'beta+': trailColor = 0x3498db; break;  // Blue
+                            case 'ec': trailColor = 0x9b59b6; break;     // Purple
+                            case 'alpha': trailColor = 0xf39c12; break;  // Orange
+                            case 'p': case '2p': trailColor = 0xe91e63; break;   // Pink (proton)
+                            case 'n': case '2n': trailColor = 0x00bcd4; break;   // Cyan (neutron)
+                            case '2beta': trailColor = 0xff5722; break;  // Deep orange (double-beta)
+                            default: trailColor = 0x95a5a6;
+                        }
+                        addTrailMarker(marbleState.currentN, marbleState.currentZ, h, trailColor);
+                        
+                        // Set new target
+                        marbleState.targetN = result.n;
+                        marbleState.targetZ = result.z;
+                        marbleState.lastDecayMode = result.mode;
+                        marbleState.decayCount++;
+                        
+                        // Start animation
+                        marbleState.animProgress = 0;
+                        marbleState.waitingForDecay = false;
+                        
+                        // Check bounds
+                        if (result.n < 0 || result.z < 1 || result.n > 180 || result.z > 120) {
+                            marbleState.settled = true;
+                        }
+                    }
+                }
+            }
+            
+            // Gentle rotation
+            marble.rotation.y += dt * 0.5;
+            
+            updateStats();
+        }
+        
+        function updateStats() {
+            // Start isotope
+            if (marbleState.startIsotope) {
+                const s = marbleState.startIsotope;
+                document.getElementById('start-isotope').textContent = `${ELEMENTS[s.Z] || '?'}-${s.A}`;
+            } else {
+                document.getElementById('start-isotope').textContent = '—';
+            }
+            
+            // Current isotope
+            if (marbleState.active) {
+                const n = marbleState.currentN;
+                const z = marbleState.currentZ;
+                const a = n + z;
+                document.getElementById('current-isotope').textContent = `${ELEMENTS[z] || '?'}-${a}`;
+            } else {
+                document.getElementById('current-isotope').textContent = '—';
+            }
+            
+            // Decay mode
+            const modeEl = document.getElementById('decay-mode');
+            modeEl.className = 'stat-value decay-mode';
+            if (marbleState.lastDecayMode) {
+                modeEl.textContent = marbleState.lastDecayMode;
+                if (marbleState.lastDecayMode === 'β⁻') modeEl.classList.add('beta-minus');
+                else if (marbleState.lastDecayMode === 'β⁺') modeEl.classList.add('beta-plus');
+                else if (marbleState.lastDecayMode === 'α') modeEl.classList.add('alpha');
+                else if (marbleState.lastDecayMode === 'EC') modeEl.classList.add('ec');
+            } else {
+                modeEl.textContent = '—';
+            }
+            
+            // Total decay time
+            const decayEl = document.getElementById('decay-time');
+            if (marbleState.totalDecayTime > 0) {
+                decayEl.textContent = formatHalfLife(marbleState.totalDecayTime);
+                decayEl.className = 'stat-value decay';
+            } else if (marbleState.settled) {
+                decayEl.textContent = 'Stable';
+                decayEl.className = 'stat-value stable';
+            } else {
+                decayEl.textContent = '—';
+                decayEl.className = 'stat-value decay';
+            }
+            
+            // Decay count
+            document.getElementById('decay-count').textContent = marbleState.decayCount;
+            
+            // Status
+            const status = document.getElementById('status');
+            if (!marbleState.active) {
+                status.textContent = 'Click to drop';
+                status.style.color = '#2c3e50';
+            } else if (marbleState.settled) {
+                const n = marbleState.currentN;
+                const z = marbleState.currentZ;
+                const halfLife = estimateHalfLife(n, z);
+                if (!isFinite(halfLife)) {
+                    status.textContent = '✓ Stable nucleus!';
+                    status.style.color = '#27ae60';
+                } else {
+                    status.textContent = '✓ Decay complete';
+                    status.style.color = '#3498db';
+                }
+            } else {
+                status.textContent = 'Decaying...';
+                status.style.color = '#9b59b6';
+            }
+        }
+
+        // ============================================================
+        // INTERACTION
+        // ============================================================
+        function onMouseMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObject(terrainMesh);
+            const tooltip = document.getElementById('tooltip');
+            
+            if (hits.length > 0) {
+                const p = hits[0].point;
+                const n = Math.round(p.x);
+                const z = Math.round(p.z);
+                const a = n + z;
+                const h = getGridHeight(p.x, p.z);
+                
+                // Only show tooltip for valid nuclear data (height > 1.5mm indicates real data, not flat fill)
+                // The base thickness is 2mm and flat areas are filled with min height (~0-2mm)
+                const MIN_VALID_HEIGHT = 2.5;
+                
+                if (h >= MIN_VALID_HEIGHT && n >= 0 && z >= 1 && z <= 118 && ELEMENTS[z]) {
+                    const halfLife = estimateHalfLife(n, z);
+                    
+                    tooltip.classList.add('visible');
+                    tooltip.style.left = e.clientX + 15 + 'px';
+                    tooltip.style.top = e.clientY + 15 + 'px';
+                    
+                    const el = ELEMENTS[z];
+                    const z_stable = getStableZ(a);
+                    const deviation = z - z_stable;
+                    let stabilityNote = '';
+                    if (Math.abs(deviation) < 0.5) {
+                        stabilityNote = '<div style="color: #27ae60; margin-top: 4px;">◆ Near stability line</div>';
+                    } else if (deviation > 0) {
+                        stabilityNote = '<div style="color: #3498db; margin-top: 4px;">◇ Proton-rich (β⁺/EC)</div>';
+                    } else {
+                        stabilityNote = '<div style="color: #e74c3c; margin-top: 4px;">◇ Neutron-rich (β⁻)</div>';
+                    }
+                    
+                    tooltip.innerHTML = `
+                        <div class="isotope-name"><sup>${a}</sup>${el}</div>
+                        <div class="isotope-details">
+                            <div>Protons (Z): <span>${z}</span></div>
+                            <div>Neutrons (N): <span>${n}</span></div>
+                            <div>Mass (A): <span>${a}</span></div>
+                            <div>Height: <span>${h.toFixed(1)} mm</span></div>
+                        </div>
+                        <div class="half-life">Half-life: <span>${formatHalfLife(halfLife)}</span></div>
+                        ${stabilityNote}
+                    `;
+                    return;
+                }
+            }
+            tooltip.classList.remove('visible');
+        }
+        
+        function onClick(e) {
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObject(terrainMesh);
+            if (hits.length > 0) {
+                const p = hits[0].point;
+                const h = getGridHeight(p.x, p.z);
+                const z = Math.round(p.z);
+                // Only allow clicks on valid nuclear data
+                if (h >= 2.5 && z >= 1 && z <= 118 && ELEMENTS[z]) {
+                    dropMarble(p);
+                }
+            }
+        }
+        
+        function onKeyDown(e) {
+            if (e.key === 'r' || e.key === 'R') {
+                camera.position.set(180, 100, 160);
+                controls.target.set(80, 15, 55);
+            }
+        }
+        
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ============================================================
+        // ANIMATION
+        // ============================================================
+        let lastTime = performance.now();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min((performance.now() - lastTime) / 1000, 0.05);
+            lastTime = performance.now();
+            controls.update();
+            updateMarble(dt);
+            if (marble && marbleState.active) {
+                marble.rotation.x += marbleState.vz * dt * 0.3;
+                marble.rotation.z -= marbleState.vn * dt * 0.3;
+            }
+            renderer.render(scene, camera);
+        }
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        async function init() {
+            try {
+                const loaded = await loadTerrainData();
+                if (!loaded) return;
+                
+                initScene();
+                createTerrain();
+                createMarble();
+                
+                window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('click', onClick);
+                window.addEventListener('keydown', onKeyDown);
+                window.addEventListener('resize', onResize);
+                
+                document.getElementById('loading').classList.add('hidden');
+                animate();
+                updateStats();
+                
+                console.log('Valley of Stability ready (AME2020 data)');
+            } catch (err) {
+                console.error('Init failed:', err);
+                updateLoadingStatus('Error: ' + err.message);
+            }
+        }
+        
+        init();
+    </script>
+</body>
+</html>

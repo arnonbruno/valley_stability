@@ -1,37 +1,29 @@
-Here is the `README.md` file tailored for your GitHub repository. It is designed to satisfy **Deliverable #2** of your Statement of Work ("documentation required for a qualified peer to recreate your results") by covering both the code execution and the specific manufacturing steps required to replicate the multicolor print shown in your screenshots.
+# Kinetic Valley: Physical & Digital Visualization of Nuclear Stability
 
-You can create a file named `README.md` in your repository and paste the content below into it.
-
----
-
-# Kinetic Valley: 3D Visualization of Nuclear Binding Energy
-
-**Artifact Type:** Deliverable #2 (Code & Documentation)
-
-**Status:** Complete
 
 ## 1. Project Overview
 
-This project transforms abstract nuclear physics data into a tangible, 3D-printable object. Using the "Valley of Stability" concept, it visualizes the binding energy of atomic nuclei.
+This project provides a multi-modal visualization of the "Valley of Stability"—a topographic representation of nuclear binding energy. It consists of two components:
 
-The provided Python software fetches live data from the International Atomic Energy Agency (IAEA), calculates the "instability" height for each isotope, applies Gaussian smoothing for manufacturability, and exports a watertight STL mesh ready for 3D printing.
+1. **Physical Artifact:** A 3D-printable model generated from AME2020 data, optimized for FDM manufacturing on Bambu Lab printers.
+2. **Digital Twin:** An interactive HTML5/WebGL simulation that allows users to simulate nuclear decay chains by "rolling" neutrons down the energy landscape.
 
-## 2. Prerequisites
+## 2. Repository Structure
 
-To run the generation script, you need a standard Python 3 environment.
+| File | Description |
+| --- | --- |
+| `valley_smoothed.py` | **Source Code.** Python script that fetches IAEA data, calculates topography, applies Gaussian smoothing, and exports the STL mesh. |
+| `valley_simulation.html` | **Interactive Simulation.** Standalone web application to visualize decay chains. |
+| `kinetic_valley_smoothed.3mf` | **Manufacturing File (Preferred).** Bambu Studio project file with pre-configured color painting, orientation, and process settings. |
+| `kinetic_valley_smoothed.stl` | **Raw Geometry.** The watertight mesh file (exported from Python) for use in other slicers. |
+| `requirements.txt` | **Dependencies.** Python libraries required to run the generation script. |
+| `BambuStudio.conf.2` | **Config.** Exported configuration settings for the Bambu Studio environment. |
 
-### Dependencies
+## 3. Prerequisites & Installation
 
-Create a `requirements.txt` file with the following libraries, or install them manually:
+### Python Environment
 
-```text
-pandas
-numpy
-scipy
-numpy-stl
-requests
-
-```
+To regenerate the mesh or process new data, you need Python 3.8+ and the dependencies listed in `requirements.txt`.
 
 **Installation:**
 
@@ -40,76 +32,65 @@ pip install -r requirements.txt
 
 ```
 
-## 3. Usage Guide
+### Web Simulation
 
-### Step 1: Generate the Mesh
+The simulation is a standalone HTML file. It runs in any modern web browser (Chrome, Firefox, Safari) with WebGL support.
 
-Run the main script to fetch the latest AME2020 data and generate the geometry.
+## 4. Usage Guide
 
+### A. Running the Simulation (Digital Twin)
+
+Double-click **`valley_simulation.html`** to launch the interactive view.
+
+**Controls:**
+
+* **Click** anywhere on the terrain to drop a "neutron marble."
+* **Hover** over isotopes to view detailed nuclear data (Half-Life, Binding Energy).
+* **Drag** to rotate, **Scroll** to zoom.
+
+*Note: The simulation uses a physics engine to trace the path of steepest energy descent, visually representing the decay chain from unstable isotopes down to the stable valley floor.*
+
+### B. Manufacturing the Object (Physical Artifact)
+
+For the best results, use the provided `.3mf` file, which contains all color mapping and process tweaks.
+
+1. **Open Project:** Double-click `kinetic_valley_smoothed.3mf` to open in Bambu Studio.
+2. **Verify Settings:**
+* **Printer:** Bambu Lab X1 Carbon (0.4mm Nozzle).
+* **Filament Mapping:**
+* Slot 1: **Black/Grey** (Grid/Base)
+* Slot 2: **Blue** (Stable Valley Floor)
+* Slot 3: **Yellow** (Unstable Slope)
+* Slot 4: **Red** (Drip Line/Peaks)
+
+
+
+
+3. **Slice & Print:** The file includes a Prime Tower and "Flush Volumes" auto-calculated to prevent color bleeding.
+
+### C. Regenerating the Geometry (Source Code)
+
+If you wish to modify the smoothing parameters or update the data source:
+
+1. Run the script:
 ```bash
-python generate_valley.py
+python valley_smoothed.py
 
 ```
 
-* **Input:** Fetches `mass_1.mas20.txt` from the [IAEA Atomic Mass Data Center](https://www-nds.iaea.org/amdc/).
-* **Processing:**
-* **X/Y Axis:** Neutron () and Proton () counts.
-* **Z Axis (Height):** Calculated as the inverse of Binding Energy per Nucleon. Higher points represent lower stability (higher potential energy).
-* **Smoothing:** Applies a Gaussian filter () to create a continuous surface printable by FDM printers.
+
+2. This will fetch the latest `mass_1.mas20.txt` from the IAEA and overwrite `kinetic_valley_smoothed.stl`.
+
+## 5. Methodology
+
+### Data Processing
+
+Data is sourced from the **AME2020 Atomic Mass Evaluation**.
+
+* **X/Z Axes:** Represent Neutron () and Proton () counts.
+* **Y Axis (Height):** Represents Instability. Calculated as the inverse of Binding Energy.
+* Equation: 
+* This creates a "gravity well" where stable isotopes are at the bottom.
 
 
-* **Output:** Creates a file named `kinetic_valley_smoothed.stl` in the working directory.
-
-### Step 2: Slicing & Manufacturing (Bambu Studio)
-
-To recreate the multicolor result shown in the project artifacts, follow these slicing instructions.
-
-**Printer Settings:**
-
-* **Printer:** Bambu Lab X1 Carbon (or similar).
-* **Nozzle:** 0.4mm.
-* **Layer Height:** 0.20mm Standard.
-* **Walls:** 2 loops.
-* **Infill:** 15% Gyroid.
-
-**Multicolor Setup (The "Heat Map" Effect):**
-The STL contains the geometry, but the "instability heat map" colors are applied in the slicer using Layer Height modifiers.
-
-1. **Import:** Drag `kinetic_valley_smoothed.stl` into Bambu Studio.
-2. **Orientation:** Ensure the flat base is on the build plate.
-3. **Color Painting:** Use the vertical layer slider (right side of "Preview") to add filament changes at these approximate heights (based on Z=60mm max):
-* **0.0mm - 2.0mm:** Black (Base/Grid).
-* **2.0mm - 10.0mm:** Blue (Stable/Valley Floor).
-* **10.0mm - 35.0mm:** Yellow (Transition Zone).
-* **35.0mm+:** Red (Highly Unstable/Drip Line).
-
-
-
-*Note: Ensure "Flush Volumes" are auto-calculated to prevent color bleeding between high-contrast transitions (e.g., Black to Yellow).*
-
-## 4. Methodology
-
-The visualization logic follows this transformation pipeline:
-
-1. **Data Ingestion:** Parses raw ASCII data from AME2020.
-2. **Topography Calculation:**
-* Identifies the "Valley Floor" (most stable  for every ).
-* Calculates height based on instability: .
-* Adds a parabolic wall factor based on distance from stability to ensure printability of edges.
-
-
-3. **Mesh Generation:** Uses linear interpolation to grid the data, followed by Gaussian filtering to remove single-pixel noise ("spikes") that causes print failures.
-
-## 5. Project Deliverables Checklist
-
-Per the Statement of Work requirements:
-
-* [x] **Scope of Work:** Submitted previously.
-* [x] **GitHub Repo:** This repository contains all source code and instructions.
-* [ ] **Presentation:** See `presentation/` folder (if applicable).
-* [ ] **Time Log:** See `time_log.csv` for breakdown of Design, Dev, Debug, and Comms hours.
-
----
-
-**Data Source Citation:**
-Wang, M., Huang, W.J., Kondev, F.G., Audi, G., Naimi, S. (2021). The AME 2020 atomic mass evaluation. *Chinese Physics C*, 45(3), 030003.
+* **Smoothing:** A Gaussian filter () is applied to the raw data grid to ensure the geometry is "manifold" and printable, removing single-pixel spikes that cause print failures.
