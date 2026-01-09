@@ -78,18 +78,13 @@ def generate_solid_mesh(df):
     y_grid = np.linspace(df['Z'].min(), df['Z'].max(), grid_res)
     X, Y = np.meshgrid(x_grid, y_grid)
     
-    # --- FIX 1: Use linear interpolation first to avoid cubic 'ringing' ---
-    # Cubic can sometimes swing wildly (overshoot) between data points.
-    # We use linear to get the shape, then gaussian to make it round.
+
     Z = griddata((df['N'], df['Z']), df['Z_mm'], (X, Y), method='linear')
     
     # Fill NaNs (outside the data hull) with the minimum height so walls slope down cleanly
     Z = np.nan_to_num(Z, nan=np.nanmin(df['Z_mm'])) 
     
-    # --- FIX 2: Stronger Smoothing ---
-    # sigma=0.3 was too weak. 
-    # sigma=3.0 on a 350 grid creates a nice "rolling hills" topography
-    # that is physically printable by a 0.4mm nozzle.
+
     print("   Applying Gaussian Filter (Sigma=3.0)...")
     Z = gaussian_filter(Z, sigma=3.0)
     
