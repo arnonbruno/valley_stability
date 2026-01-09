@@ -98,7 +98,7 @@ Data is sourced from the **AME2020 Atomic Mass Evaluation**.
 ## Manufacturing Validation
 To ensure the model is ready for physical production, the design was validated using Bambu Studio. The image below demonstrates the 4-color stratification logic where height (instability) maps to filament layers:
 
-![Bambu Studio Print Preview](bambu_studio_file.jpg)
+![Bambu Studio Print Preview](bambu_studio_file.png)
 
 * [cite_start]**White**: Stable Valley Floor [cite: 26]
 * [cite_start]**Blue**: Low Slope / Long Half-Life [cite: 27]
