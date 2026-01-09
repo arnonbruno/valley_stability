@@ -94,3 +94,13 @@ Data is sourced from the **AME2020 Atomic Mass Evaluation**.
 
 
 * **Smoothing:** A Gaussian filter () is applied to the raw data grid to ensure the geometry is "manifold" and printable, removing single-pixel spikes that cause print failures.
+
+## Manufacturing Validation
+To ensure the model is ready for physical production, the design was validated using Bambu Studio. The image below demonstrates the 4-color stratification logic where height (instability) maps to filament layers:
+
+![Bambu Studio Print Preview](bambu_studio_file.jpg)
+
+* [cite_start]**White**: Stable Valley Floor [cite: 26]
+* [cite_start]**Blue**: Low Slope / Long Half-Life [cite: 27]
+* [cite_start]**Yellow**: High Slope / Short Half-Life [cite: 28]
+* [cite_start]**Red**: Peaks / Extreme Instability [cite: 29]
