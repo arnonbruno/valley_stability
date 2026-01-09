@@ -89,7 +89,7 @@ Data is sourced from the **AME2020 Atomic Mass Evaluation**.
 
 * **X/Z Axes:** Represent Neutron () and Proton () counts.
 * **Y Axis (Height):** Represents Instability. Calculated as the inverse of Binding Energy.
-* Equation: 
+* Equation: $Height = (8.8 \text{ MeV} - \text{BE/nucleon})^2 + \text{DistancePenalty}$
 * This creates a "gravity well" where stable isotopes are at the bottom.
 
 
